@@ -1,7 +1,14 @@
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
 
 void main() {
   runApp(const MainApp());
+}
+
+Future<String> fetchData() async {
+  final response = await http.get(Uri.parse('https://google.com'));
+
+  return response.body;
 }
 
 class MainApp extends StatefulWidget {
@@ -12,54 +19,42 @@ class MainApp extends StatefulWidget {
 }
 
 class _MainAppState extends State<MainApp> {
-  String? result;
-  String? theError;
-  bool executing = false;
-
   @override
-  Widget build(BuildContext context) => MaterialApp(
-        home: Scaffold(
-          body: Center(
-            child: Column(
-              children: [
-                if (result == null && theError == null)
-                  Text(!executing ? 'Please Press to process' : 'Waiting')
-                else if (result != null)
-                  Text('Result:$result')
-                else if (theError != null)
-                  Text('Error:$theError'),
-                ElevatedButton(
-                  onPressed: () {
-                    setState(() {
-                      result = null;
-                      theError = null;
-                      executing = true;
-                    });
-                    getData().then((value) {
-                      setState(() {
-                        executing = false;
-                        result = value;
-                      });
-                    }).catchError((catchedError) {
-                      setState(() {
-                        executing = false;
-                        theError = catchedError;
-                      });
-                    });
-                  },
-                  child: Text('Action'),
-                )
-              ],
-            ),
-          ),
-        ),
-      );
+  Widget build(BuildContext context) {
+    print('Rebuilding');
+    return MaterialApp(
+      home: Scaffold(
+        body: Center(
+          child: FutureBuilder<String>(
+              future: getData(),
+              builder: (context, snapshot) {
+                print('Rebuilding: Child');
 
-  Future<String> getData() => Future<String>.delayed(
-        const Duration(seconds: 3),
-        () {
-          throw 'Backend Error';
-          return 'Data';
-        },
-      );
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Text('Waiting');
+                } else if (snapshot.connectionState == ConnectionState.done) {
+                  if (snapshot.hasError) {
+                    return Text('Error: ${snapshot.error}');
+                  }
+                  if (snapshot.hasData) {
+                    return Text('Data: ${snapshot.data}');
+                  }
+                }
+                return const Text('Anything else');
+              }),
+        ),
+      ),
+    );
+  }
+
+  Future<String> getData() {
+    return Future.delayed(
+      const Duration(seconds: 3),
+      () {
+        print('excecuting Future');
+        // throw 'Backend Error';
+        return 'Data';
+      },
+    );
+  }
 }
